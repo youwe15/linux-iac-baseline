@@ -1,0 +1,58 @@
+---
+# IAC-LNX-03: account and authentication policy is enforced
+- name: Install password quality tooling
+  ansible.builtin.apt:
+    name:
+      - libpam-pwquality
+      - libpam-modules
+    state: present
+
+- name: Configure the password quality policy
+  ansible.builtin.copy:
+    dest: /etc/security/pwquality.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by {{ baseline_name }} v{{ baseline_version }}
+      # Enforced through pam_pwquality on password change.
+      minlen = {{ pw_minlen }}
+      minclass = {{ pw_minclass }}
+      maxrepeat = {{ pw_maxrepeat }}
+      maxclassrepeat = {{ pw_maxclassrepeat }}
+      difok = {{ pw_difok }}
+      enforcing = 1
+
+- name: Set password aging in /etc/login.defs
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^{{ item.key }}\s'
+    line: "{{ item.key }}\t{{ item.value }}"
+    state: present
+  loop:
+    - { key: PASS_MAX_DAYS, value: "{{ pass_max_days }}" }
+    - { key: PASS_MIN_DAYS, value: "{{ pass_min_days }}" }
+    - { key: PASS_WARN_AGE, value: "{{ pass_warn_age }}" }
+    - { key: UMASK, value: "{{ login_umask }}" }
+  loop_control:
+    label: "{{ item.key }} = {{ item.value }}"
+
+- name: Find accounts with an empty password field
+  ansible.builtin.shell: |
+    awk -F: '($2 == "") {print $1}' /etc/shadow
+  register: iac_empty_password_accounts
+  changed_when: false
+  check_mode: false
+
+- name: Lock any account that has no password set
+  ansible.builtin.user:
+    name: "{{ item }}"
+    password_lock: true
+  loop: "{{ iac_empty_password_accounts.stdout_lines }}"
+
+- name: Report accounts without a password
+  ansible.builtin.debug:
+    msg: >-
+      Locked {{ iac_empty_password_accounts.stdout_lines | length }} account(s)
+      with an empty password field: {{ iac_empty_password_accounts.stdout_lines }}
+  when: iac_empty_password_accounts.stdout_lines | length > 0

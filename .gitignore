@@ -1,0 +1,31 @@
+# --- Ansible ---
+*.retry
+.ansible/
+__pycache__/
+*.pyc
+
+# --- Secrets: never commit these ---
+.vault_pass
+.vault_pass.txt
+vault_pass*
+*.pem
+*.key
+id_rsa
+id_rsa*
+id_ed25519
+id_ed25519*
+*.p12
+*.pfx
+
+# --- Raw audit output (keep curated copies in evidence/ instead) ---
+evidence/raw/
+*.dat
+*.log
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

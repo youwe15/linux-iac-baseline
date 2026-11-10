@@ -1,0 +1,179 @@
+---
+# =====================================================================
+#  IAC-Linux-Secure Baseline v1.0 - all tunable values
+#
+#  Every security decision lives here so the benchmark is auditable:
+#  one file answers "what does this baseline actually enforce?"
+#
+#  Never put a real password, key or token in this file.
+#  If a secret is genuinely required use:  ansible-vault encrypt_string
+# =====================================================================
+baseline_name: "IAC-Linux-Secure Baseline"
+baseline_version: "1.0"
+
+# ---------------------------------------------------------------------
+# IAC-LNX-01 / 02 - updates
+# ---------------------------------------------------------------------
+baseline_apply_updates: true       # set false only when re-running offline
+automatic_updates_enabled: true
+
+# ---------------------------------------------------------------------
+# IAC-LNX-03 - accounts and password policy
+# ---------------------------------------------------------------------
+pw_minlen: 12
+pw_minclass: 3
+pw_maxrepeat: 3
+pw_maxclassrepeat: 4
+pw_difok: 2
+
+pass_max_days: 365                 # CIS allows up to 365 for non-privileged use
+pass_min_days: 1
+pass_warn_age: 14
+login_umask: "027"
+
+# ---------------------------------------------------------------------
+# IAC-LNX-04 - services that should not be running on a server
+# Never add "ssh" to this list.
+# ---------------------------------------------------------------------
+services_to_disable:
+  - avahi-daemon
+  - cups
+  - cups-browsed
+  - rpcbind
+  - nfs-server
+  - vsftpd
+  - telnet
+  - xinetd
+  - slapd
+  - squid
+
+# ---------------------------------------------------------------------
+# IAC-LNX-05 / 06 - SSH
+# ---------------------------------------------------------------------
+ssh_port: 22
+ssh_permit_root_login: "no"
+# Keep passwords until key-based login is proven to work. Then set "no".
+ssh_password_authentication: "yes"
+ssh_max_auth_tries: 3
+ssh_login_grace_time: 30
+ssh_max_sessions: 4
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+ssh_allow_users: ""                # e.g. "student ansible"; empty = no restriction
+ssh_allow_tcp_forwarding: "no"
+
+# ---------------------------------------------------------------------
+# IAC-LNX-07 - firewall
+# ---------------------------------------------------------------------
+ufw_enable: true
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+ufw_logging: "low"
+ufw_allowed_tcp_ports: []          # extra ports beyond ssh_port, e.g. [80, 443]
+
+# ---------------------------------------------------------------------
+# IAC-LNX-08 - auditd
+# ---------------------------------------------------------------------
+audit_rules_file: /etc/audit/rules.d/99-iac-baseline.rules
+
+# ---------------------------------------------------------------------
+# IAC-LNX-09 - sensitive file permissions
+# ---------------------------------------------------------------------
+sensitive_files:
+  - path: /etc/passwd
+    mode: "0644"
+    owner: root
+    group: root
+  - path: /etc/group
+    mode: "0644"
+    owner: root
+    group: root
+  - path: /etc/shadow
+    mode: "0640"
+    owner: root
+    group: shadow
+  - path: /etc/gshadow
+    mode: "0640"
+    owner: root
+    group: shadow
+  - path: /etc/shadow-
+    mode: "0640"
+    owner: root
+    group: shadow
+  - path: /etc/gshadow-
+    mode: "0640"
+    owner: root
+    group: shadow
+  - path: /etc/sudoers
+    mode: "0440"
+    owner: root
+    group: root
+  - path: /etc/ssh/sshd_config
+    mode: "0600"
+    owner: root
+    group: root
+  - path: /etc/crontab
+    mode: "0600"
+    owner: root
+    group: root
+  - path: /etc/cron.d
+    mode: "0700"
+    owner: root
+    group: root
+  - path: /etc/cron.hourly
+    mode: "0700"
+    owner: root
+    group: root
+  - path: /etc/cron.daily
+    mode: "0700"
+    owner: root
+    group: root
+  - path: /etc/cron.weekly
+    mode: "0700"
+    owner: root
+    group: root
+  - path: /etc/cron.monthly
+    mode: "0700"
+    owner: root
+    group: root
+  - path: /root
+    mode: "0700"
+    owner: root
+    group: root
+
+# ---------------------------------------------------------------------
+# IAC-LNX-10 - logging
+# ---------------------------------------------------------------------
+journald_max_use: "500M"
+journald_max_file_size: "50M"
+
+# ---------------------------------------------------------------------
+# IAC-LNX-11 - network / kernel hardening
+# Every key below is applied to /etc/sysctl.d/99-iac-baseline.conf
+# ---------------------------------------------------------------------
+hardening_sysctl:
+  kernel.dmesg_restrict: "1"
+  kernel.kptr_restrict: "2"
+  kernel.randomize_va_space: "2"
+  kernel.yama.ptrace_scope: "1"
+  fs.protected_hardlinks: "1"
+  fs.protected_symlinks: "1"
+  fs.suid_dumpable: "0"
+  net.ipv4.tcp_syncookies: "1"
+  net.ipv4.conf.all.rp_filter: "1"
+  net.ipv4.conf.default.rp_filter: "1"
+  net.ipv4.conf.all.accept_redirects: "0"
+  net.ipv4.conf.default.accept_redirects: "0"
+  net.ipv4.conf.all.secure_redirects: "0"
+  net.ipv4.conf.default.secure_redirects: "0"
+  net.ipv4.conf.all.accept_source_route: "0"
+  net.ipv4.conf.default.accept_source_route: "0"
+  net.ipv4.conf.all.log_martians: "1"
+  net.ipv4.conf.default.log_martians: "1"
+  net.ipv4.icmp_echo_ignore_broadcasts: "1"
+  net.ipv4.icmp_ignore_bogus_error_responses: "1"
+  net.ipv4.conf.all.send_redirects: "0"
+  net.ipv6.conf.all.accept_redirects: "0"
+  net.ipv6.conf.all.accept_source_route: "0"
+  # Only disable router advertisements if this server really does not use IPv6.
+  net.ipv6.conf.all.accept_ra: "0"

@@ -1,0 +1,44 @@
+---
+# IAC-LNX-04: unnecessary services are stopped, disabled and masked
+- name: Collect the current service state
+  ansible.builtin.service_facts:
+
+- name: Disable unnecessary systemd services
+  ansible.builtin.systemd:
+    name: "{{ item }}.service"
+    state: stopped
+    enabled: false
+    masked: true
+  loop: "{{ services_to_disable }}"
+  when: (item ~ '.service') in ansible_facts.services
+  loop_control:
+    label: "{{ item }}"
+
+- name: Disable unnecessary systemd sockets
+  ansible.builtin.systemd:
+    name: "{{ item }}.socket"
+    state: stopped
+    enabled: false
+    masked: true
+  loop: "{{ services_to_disable }}"
+  when: (item ~ '.socket') in ansible_facts.services
+  loop_control:
+    label: "{{ item }}.socket"
+
+- name: Report which candidate services are not installed at all
+  ansible.builtin.debug:
+    msg: >-
+      Not installed (nothing to disable):
+      {{ iac_missing_services | join(', ') if iac_missing_services | length > 0 else 'none' }}
+  vars:
+    iac_missing_services: "{{ services_to_disable | reject('in', ansible_facts.services) | list }}"
+
+- name: Record the final set of enabled services
+  ansible.builtin.command: systemctl list-units --type=service --state=running --no-legend --no-pager
+  register: iac_running_services
+  changed_when: false
+  check_mode: false
+
+- name: Report the running service set
+  ansible.builtin.debug:
+    msg: "{{ iac_running_services.stdout_lines }}"

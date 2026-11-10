@@ -1,0 +1,43 @@
+---
+# IAC-LNX-08: system auditing (auditd) is enabled with useful rules
+#
+# Note: on Ubuntu, auditd.service has RefuseManualStop=yes, so you must NOT
+# use "systemctl restart auditd". Reload rules with augenrules --load instead.
+- name: Install the Linux audit daemon
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+
+- name: Enable and start auditd
+  ansible.builtin.systemd:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Deploy the baseline audit rules
+  ansible.builtin.template:
+    src: 99-iac-baseline.rules.j2
+    dest: "{{ audit_rules_file }}"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Load audit rules
+
+- name: Load the rules immediately so the first verification passes
+  ansible.builtin.command: augenrules --load
+  changed_when: false
+
+- name: Read the active audit rules
+  ansible.builtin.command: auditctl -l
+  register: iac_audit_rules
+  changed_when: false
+  check_mode: false
+
+- name: Show the number of active audit rules
+  ansible.builtin.debug:
+    msg: >-
+      auditd is {{ 'active' if iac_audit_rules.rc == 0 else 'NOT active' }};
+      {{ iac_audit_rules.stdout_lines | length }} rule(s) loaded from
+      {{ audit_rules_file }}.

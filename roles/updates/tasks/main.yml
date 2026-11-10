@@ -1,0 +1,64 @@
+---
+# IAC-LNX-01: the system is fully patched
+# IAC-LNX-02: automatic security updates are enabled
+- name: Refresh the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Apply all pending package updates
+  ansible.builtin.apt:
+    upgrade: safe
+    autoremove: true
+    autoclean: true
+  register: iac_apt_upgrade
+  retries: 3
+  delay: 10
+  until: iac_apt_upgrade is success
+  when: baseline_apply_updates | bool
+
+- name: Ensure unattended-upgrades is installed
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+
+- name: Enable periodic apt update and unattended upgrade
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      // Managed by {{ baseline_name }} v{{ baseline_version }}
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "{{ 1 if automatic_updates_enabled | bool else 0 }}";
+      APT::Periodic::AutocleanInterval "7";
+
+- name: Enable the apt maintenance timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
+- name: Enable the unattended-upgrades unit
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    enabled: true
+
+- name: Check whether a reboot is required after patching
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: iac_reboot_required
+
+- name: Report the pending reboot
+  ansible.builtin.debug:
+    msg: >-
+      A reboot is required to finish applying updates (kernel or libc changed).
+      Reboot at a safe moment and re-run the playbook. This is expected after
+      IAC-LNX-01 and is worth showing in your report.
+  when: iac_reboot_required.stat.exists

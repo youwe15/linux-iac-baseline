@@ -1,0 +1,33 @@
+---
+# IAC-LNX-09: ownership and permissions of sensitive files are correct
+- name: Inspect the current state of every sensitive file
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ sensitive_files }}"
+  register: iac_sensitive_stat
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Enforce ownership and mode on sensitive files that exist
+  ansible.builtin.file:
+    path: "{{ item.item.path }}"
+    owner: "{{ item.item.owner }}"
+    group: "{{ item.item.group }}"
+    mode: "{{ item.item.mode }}"
+  loop: "{{ iac_sensitive_stat.results }}"
+  when: item.stat.exists
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Record the resulting permissions as evidence
+  ansible.builtin.command: >-
+    stat -c '%a %U:%G %n'
+    /etc/passwd /etc/shadow /etc/group /etc/gshadow
+    /etc/sudoers /etc/ssh/sshd_config /etc/crontab /root
+  register: iac_stat_evidence
+  changed_when: false
+  check_mode: false
+
+- name: Show the resulting permissions
+  ansible.builtin.debug:
+    msg: "{{ iac_stat_evidence.stdout_lines }}"

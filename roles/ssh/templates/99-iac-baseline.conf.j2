@@ -1,0 +1,21 @@
+# Managed by {{ baseline_name }} v{{ baseline_version }}
+# Drop-in for /etc/ssh/sshd_config.d/  (read before the main sshd_config)
+#
+# IAC-LNX-05 / IAC-LNX-06
+Port {{ ssh_port }}
+PermitRootLogin {{ ssh_permit_root_login }}
+PasswordAuthentication {{ ssh_password_authentication }}
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+MaxAuthTries {{ ssh_max_auth_tries }}
+LoginGraceTime {{ ssh_login_grace_time }}
+MaxSessions {{ ssh_max_sessions }}
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+LogLevel VERBOSE
+{% if ssh_allow_users | length > 0 %}
+AllowUsers {{ ssh_allow_users }}
+{% endif %}

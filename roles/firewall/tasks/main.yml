@@ -1,0 +1,61 @@
+---
+# IAC-LNX-07: host firewall enabled, only required ports reachable
+#
+# ORDER MATTERS. SSH is allowed before the firewall is enabled, otherwise
+# Ansible loses its own connection mid-play.
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Set the default incoming policy to {{ ufw_default_incoming }}
+  community.general.ufw:
+    direction: incoming
+    policy: "{{ ufw_default_incoming }}"
+
+- name: Set the default outgoing policy to {{ ufw_default_outgoing }}
+  community.general.ufw:
+    direction: outgoing
+    policy: "{{ ufw_default_outgoing }}"
+
+- name: Allow SSH (must come before enabling the firewall)
+  community.general.ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    comment: "IAC-LNX-07 administration access"
+
+- name: Allow additional required TCP ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "IAC-LNX-07 project requirement"
+  loop: "{{ ufw_allowed_tcp_ports }}"
+
+- name: Enable ufw with logging
+  community.general.ufw:
+    state: enabled
+    logging: "{{ ufw_logging }}"
+  when: ufw_enable | bool
+
+- name: Read the firewall status
+  ansible.builtin.command: ufw status verbose
+  register: iac_ufw_status
+  changed_when: false
+  check_mode: false
+
+- name: Show the firewall status
+  ansible.builtin.debug:
+    msg: "{{ iac_ufw_status.stdout_lines }}"
+
+- name: Confirm the SSH port is allowed before moving on
+  ansible.builtin.assert:
+    that:
+      - "'{{ ssh_port }}' in iac_ufw_status.stdout"
+    fail_msg: >-
+      Port {{ ssh_port }} is not listed by ufw. Stop here and allow it from the
+      VM console with: sudo ufw allow {{ ssh_port }}/tcp
+    quiet: true

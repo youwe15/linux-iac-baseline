@@ -1,0 +1,87 @@
+---
+# =====================================================================
+#  IAC-Linux-Secure Baseline v1.0
+#  Entry point: applies every benchmark control to the target host(s).
+#
+#  Usage:
+#    ansible-playbook -i inventory.ini site.yml --syntax-check
+#    ansible-playbook -i inventory.ini site.yml --check --diff -K
+#    ansible-playbook -i inventory.ini site.yml -K
+#
+#  Run individual areas with tags:
+#    ansible-playbook -i inventory.ini site.yml -K --tags ssh,firewall
+# =====================================================================
+- name: Apply IAC-Linux-Secure baseline v1.0
+  hosts: linux_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Confirm the target is a supported Ubuntu release
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+        fail_msg: >-
+          This baseline targets Ubuntu Server. Found
+          {{ ansible_distribution }} {{ ansible_distribution_version }}.
+        success_msg: >-
+          Target: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          ({{ ansible_architecture }}), kernel {{ ansible_kernel }}
+
+    - name: Warn when running on a non-LTS (interim) Ubuntu release
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: {{ ansible_distribution_release }} is not an LTS release.
+          Interim releases lose support after 9 months, which prevents controls
+          IAC-LNX-01 and IAC-LNX-02 (patching) from being evidenced.
+      when: ansible_distribution_release not in ['noble', 'jammy', 'focal']
+
+    - name: Confirm we have a working sudo escalation
+      ansible.builtin.command: id -u
+      register: baseline_uid
+      changed_when: false
+      check_mode: false
+
+    - name: Fail if we are not actually root after escalation
+      ansible.builtin.assert:
+        that:
+          - baseline_uid.stdout == "0"
+        fail_msg: "Privilege escalation failed - re-run with -K"
+        quiet: true
+
+  roles:
+    - role: updates
+      tags: [updates, packages]
+
+    - role: accounts
+      tags: [accounts, auth]
+
+    - role: ssh
+      tags: [ssh]
+
+    - role: firewall
+      tags: [firewall, network]
+
+    - role: services
+      tags: [services]
+
+    - role: logging
+      tags: [logging]
+
+    - role: audit
+      tags: [audit, auditing]
+
+    - role: permissions
+      tags: [permissions, files]
+
+    - role: sysctl
+      tags: [sysctl, network]
+
+  post_tasks:
+    - name: Baseline applied - next steps
+      ansible.builtin.debug:
+        msg:
+          - "Baseline {{ baseline_version }} applied to {{ inventory_hostname }}."
+          - "1. bash scripts/02-verify-controls.sh"
+          - "2. bash scripts/01-lynis-audit.sh final ~/evidence"
+          - "3. Re-run this playbook: the second run must report changed=0 (IAC-LNX-13)."

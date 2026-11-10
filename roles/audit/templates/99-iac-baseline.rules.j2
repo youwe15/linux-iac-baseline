@@ -1,0 +1,34 @@
+# Managed by {{ baseline_name }} v{{ baseline_version }}
+# IAC-LNX-08 - audit rules for identity, privilege and configuration changes
+#
+# Load with:  sudo augenrules --load
+# List with:  sudo auditctl -l
+# Query with: sudo ausearch -k identity
+
+## Identity and authentication databases
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/security/opasswd -p wa -k identity
+
+## Privilege escalation
+-w /etc/sudoers -p wa -k scope
+-w /etc/sudoers.d/ -p wa -k scope
+
+## Remote access configuration
+-w /etc/ssh/sshd_config -p wa -k sshd
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd
+
+## Authentication events
+-w /var/log/auth.log -p wa -k authlog
+
+## Scheduled tasks
+-w /etc/crontab -p wa -k cron
+-w /etc/cron.d/ -p wa -k cron
+-w /var/spool/cron/ -p wa -k cron
+
+{% if ansible_architecture == 'x86_64' %}
+## Privileged command execution (x86_64 only)
+-a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k setuid
+{% endif %}

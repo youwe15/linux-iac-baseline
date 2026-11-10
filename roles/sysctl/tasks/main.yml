@@ -1,0 +1,29 @@
+---
+# IAC-LNX-11: network and kernel parameters are hardened
+#
+# Values are written to a single drop-in file so the change is auditable:
+#   /etc/sysctl.d/99-iac-baseline.conf
+- name: Apply the hardened kernel and network parameters
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-iac-baseline.conf
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ hardening_sysctl | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} = {{ item.value }}"
+
+- name: Read back the applied values as evidence
+  ansible.builtin.command: >-
+    sysctl -n kernel.dmesg_restrict kernel.kptr_restrict kernel.randomize_va_space
+    net.ipv4.tcp_syncookies net.ipv4.conf.all.rp_filter
+    net.ipv4.conf.all.accept_redirects net.ipv4.conf.all.accept_source_route
+  register: iac_sysctl_evidence
+  changed_when: false
+  check_mode: false
+
+- name: Show the applied values
+  ansible.builtin.debug:
+    msg: "{{ iac_sysctl_evidence.stdout_lines }}"
