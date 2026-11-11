@@ -1,4 +1,4 @@
 ---
-- name: Load the audit rules
+- name: Load audit rules
   ansible.builtin.command: augenrules --load
   changed_when: true

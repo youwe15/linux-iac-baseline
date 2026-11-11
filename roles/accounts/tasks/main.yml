@@ -56,3 +56,18 @@
       Locked {{ iac_empty_password_accounts.stdout_lines | length }} account(s)
       with an empty password field: {{ iac_empty_password_accounts.stdout_lines }}
   when: iac_empty_password_accounts.stdout_lines | length > 0
+
+- name: Find human user accounts (uid >= 1000)
+  ansible.builtin.shell: |
+    awk -F: '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd
+  register: iac_human_accounts
+  changed_when: false
+  check_mode: false
+
+- name: Enforce password aging on existing human accounts
+  ansible.builtin.command: >-
+    chage -M {{ pass_max_days }} -m {{ pass_min_days }} -W {{ pass_warn_age }} {{ item }}
+  loop: "{{ iac_human_accounts.stdout_lines }}"
+  changed_when: false
+  loop_control:
+    label: "{{ item }}"

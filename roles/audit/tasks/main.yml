@@ -15,6 +15,7 @@
     name: auditd
     enabled: true
     state: started
+  when: not ansible_check_mode
 
 - name: Deploy the baseline audit rules
   ansible.builtin.template:
@@ -33,7 +34,7 @@
   ansible.builtin.command: auditctl -l
   register: iac_audit_rules
   changed_when: false
-  check_mode: false
+  when: not ansible_check_mode
 
 - name: Show the number of active audit rules
   ansible.builtin.debug:
@@ -41,3 +42,4 @@
       auditd is {{ 'active' if iac_audit_rules.rc == 0 else 'NOT active' }};
       {{ iac_audit_rules.stdout_lines | length }} rule(s) loaded from
       {{ audit_rules_file }}.
+  when: not ansible_check_mode

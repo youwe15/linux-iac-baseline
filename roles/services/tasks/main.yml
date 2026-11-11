@@ -25,13 +25,9 @@
   loop_control:
     label: "{{ item }}.socket"
 
-- name: Report which candidate services are not installed at all
+- name: Report the candidate services being considered
   ansible.builtin.debug:
-    msg: >-
-      Not installed (nothing to disable):
-      {{ iac_missing_services | join(', ') if iac_missing_services | length > 0 else 'none' }}
-  vars:
-    iac_missing_services: "{{ services_to_disable | reject('in', ansible_facts.services) | list }}"
+    msg: "Candidate services considered for removal: {{ services_to_disable | join(', ') }}"
 
 - name: Record the final set of enabled services
   ansible.builtin.command: systemctl list-units --type=service --state=running --no-legend --no-pager
