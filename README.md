@@ -24,7 +24,7 @@ Fresh Ubuntu Server
 
 | Setup | VMs | RAM needed | When to use it |
 |---|---|---|---|
-| **Minimum (start here today)** | 1 | 2–4 GB | Ansible runs on the same VM it manages (`ansible_connection=local`). Still real IaC. |
+| **Minimum (start here today)** | 2 | 4 GB | Ansible runs on the same VM it manages (`ansible_connection=local`). Still real IaC. |
 | **Recommended (for the demo)** | 2 | ~5 GB | Controller + target. Proves real remote automation over SSH, and lets you re-run the playbook on a *fresh* target to show repeatability. |
 
 You do **not** need three or more VMs. If you want to "prove repeatability on a clean machine",
